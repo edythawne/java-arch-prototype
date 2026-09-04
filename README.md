@@ -25,19 +25,24 @@ Este proyecto implementa una **Arquitectura en Capas** estructurada de forma mod
 
 ### Flujo de Ejecución del Prototipo
 
-El backend procesa las solicitudes HTTP siguiendo un flujo estandarizado a través de clases abstractas base (`BaseController`, `BaseCase`, `BaseService`). Los parámetros viajan de forma segura como argumentos directos en cada llamada a método (`run(request)` e `invoke(data)`), eliminando variables de instancia mutables en componentes Singleton:
+El backend procesa las solicitudes HTTP siguiendo un flujo estandarizado a través de clases abstractas base (`BaseController`, `BaseCase`, `BaseService`). Las peticiones entran por el método ejecutor `execute(TRequest request)`, se transforman a un contexto apátrida `Map<String, Object>` en `onCreate(...)` y fluyen de forma aislada a través de `run(Map<String, Object>)` e `invoke(Map<String, Object>)`, asegurando aislamiento total por hilo:
 
 ```mermaid
 sequenceDiagram
     autonumber
     actor Client as Cliente / Controller
-    participant UseCase as Service / Case (BaseCase)
-    participant Repo as Infrastructure / Service (BaseService)
+    participant BaseCase as Template Method (BaseCase)
+    participant UseCase as Concrete Case (GetUserByIdCase)
+    participant Repo as Infrastructure (GetUserByIdService)
 
-    Client->>UseCase: run(id)
-    UseCase->>Repo: invoke(id)
-    Repo-->>UseCase: return datos (UserEntity / Boolean)
-    UseCase-->>Client: return response (ResultResponse)
+    Client->>BaseCase: execute(id)
+    BaseCase->>UseCase: onCreate(id)
+    UseCase-->>BaseCase: return Map.of(KEY_ID, id)
+    BaseCase->>UseCase: run(dataMap)
+    UseCase->>Repo: invoke(dataMap)
+    Repo-->>UseCase: return UserEntity
+    UseCase-->>BaseCase: return ResultResponse<UserResponse>
+    BaseCase-->>Client: return response
 
 ```
 
@@ -50,59 +55,66 @@ El proyecto organiza sus paquetes bajo el directorio `edy.app.sgc.arch` reflejan
 1. **Presentación (`edy.app.sgc.arch.application`):**
 
 * Capa externa encargada de exponer los puntos de entrada mediante controladores REST (`UserController` heredando de `BaseController`).
-* Gestiona la comunicación directa con el cliente transformando los resultados en objetos `ResponseEntity`.
+* Recibe solicitudes y las delega invocando `execute(request)`, transformando los resultados en objetos `ResponseEntity`.
 
 2. **Aplicación / Casos de Uso (`edy.app.sgc.arch.domain.usecase`):**
 
-* Contiene la lógica de negocio específica y secuencial de la aplicación (`GetUserByIdCase`, `GetAllUserCase`, etc., heredando de `BaseCase`).
-* Orquesta las reglas del sistema de forma apátrida (*Stateless*) e independiente a los frameworks web.
+* Contiene la lógica de negocio específica y secuencial de la aplicación (`GetUserByIdCase`, `GetAllUserCase`, heredando de `BaseCase<TRequest, TResponse>`).
+* Orquesta las reglas del sistema de forma apátrida (*Stateless*) transformando la entrada en un mapa de contexto seguro mediante `onCreate(...)`.
 
 3. **Dominio (`edy.app.sgc.arch.domain`):**
 
-* El núcleo central que define las estructuras de respuesta, códigos de estado, configuraciones de lenguaje y objetos de transferencia de datos (`ResultResponse`, `UserResponse`, `StudentIndexResponse`).
+* El núcleo central que define las estructuras de respuesta, constantes de claves (`AppConstant`), configuraciones de lenguaje y DTOs (`ResultResponse`, `UserResponse`, `StudentIndexResponse`).
 
 4. **Infraestructura (`edy.app.sgc.arch.infrastructure`):**
 
-* La capa más externa responsable de la persistencia y la conexión con la base de datos mediante JPA/Hibernate, `EntityManager` y `JdbcTemplate` (`GetUserByIdService`, `UserChangeVisibilityService` heredando de `BaseService`).
+* Capa responsable de la persistencia y la conexión con la base de datos mediante JPA/Hibernate y `EntityManager` (`GetUserByIdService`, `GetAllStudentService` heredando de `BaseService<TOutput>`).
 
 ### Patrones de Diseño Implementados
 
-* **Command (Comando):** Cada caso de uso y servicio encapsula una operación única de negocio mediante el contrato de ejecución genérica `run(TInput)` e `invoke(TInput)`.
-* **Template Method:** Empleado en `BaseCase` y `BaseService` para estandarizar el esqueleto de ejecución de las operaciones de negocio y consultas a base de datos.
-* **Data Transfer Object (DTO):** Implementado en `ResultResponse`, `UserResponse` y `StudentIndexResponse` para transportar información de manera segura sin exponer las entidades de base de datos (`UserEntity`).
-* **Data Mapper:** Uso de `ModelMapper` y transformaciones manuales en Java Streams para convertir entidades ORM a objetos de respuesta.
-* **Repository / DAO:** Clases anotadas con `@Repository` que encapsulan las consultas JPQL y ejecuciones de funciones/procedimientos SQL.
+* **Command (Comando):** Encapsula cada operación de negocio dentro de la llamada unificada `execute(TRequest)`.
+* **Template Method:** Implementado en `BaseCase` para definir el esqueleto inmutable del flujo (`execute` llama internamente a `onCreate` y luego a `run`), permitiendo a cada caso de uso concretar la validación y ejecución.
+* **Data Transfer Object (DTO):** Objetos como `ResultResponse`, `UserResponse` y `StudentIndexResponse` transportan la información sin exponer directamente las entidades JPA.
+* **Data Mapper:** Uso de `ModelMapper` y transformaciones con Java Streams para mapear entidades relacionales a DTOs de salida.
+* **Repository / DAO:** Componentes anotados con `@Repository` que abstraen las consultas JPQL con `EntityManager`.
 * **Inyección de Dependencias:** Gestionada nativamente por Spring Boot mediante `@RequiredArgsConstructor` de Lombok.
 
 ---
 
 ## Principios de la Programación Orientada a Objetos (OOP) en la Arquitectura
 
-Para estandarizar el comportamiento del sistema y garantizar la **seguridad frente a hilos concurrentes**, la arquitectura implementa principios de la OOP (como la **Abstracción**, la **Herencia**, el **Encapsulamiento** y el **Polimorfismo**) a través de clases abstractas base genéricas.
+Para estandarizar el comportamiento del sistema y garantizar la **seguridad frente a hilos concurrentes**, la arquitectura implementa principios de la OOP mediante clases abstractas base genéricas.
 
 ### 1. Abstracción y Diseño Apátrida (*Stateless*): Clases Base (`BaseCase` y `BaseService`)
 
-La abstracción permite definir contratos generales ocultando los detalles de implementación específicos. Para evitar **condiciones de carrera (*Race Conditions*)**, se eliminaron las variables con `@Setter` de las clases base, convirtiéndolas en métodos ejecutores puros.
+La abstracción permite definir un contrato de procesamiento estandarizado donde la información viaja únicamente como variables de pila (*Stack*) en forma de `Map<String, Object>`.
 
-* **Aplicación en Casos de Uso (`BaseCase`):**
-  Define un comportamiento genérico para manejar entradas (`TInput`) y salidas (`TOutput`), obligando a las clases hijas a implementar la lógica de negocio en el método `run(TInput request)` recibiendo el parámetro por argumento.
+* **Contrato Base de Casos de Uso (`BaseCase`):**
+  Acepta tipos genéricos para la solicitud inicial (`TRequest`) y la respuesta (`TResponse`), estructurando el pipeline de ejecución:
 
 ```java
-public abstract class BaseCase<TInput, TOutput> {
+public abstract class BaseCase<TRequest, TResponse> {
 
-    public abstract ResultResponse<TOutput> run(TInput request);
+    public ResultResponse<TResponse> execute(TRequest request) {
+        var dataRequest = this.onCreate(request);
+        return this.run(dataRequest);
+    }
+
+    protected abstract Map<String, Object> onCreate(TRequest request);
+
+    protected abstract ResultResponse<TResponse> run(Map<String, Object> request);
 
 }
 
 ```
 
-* **Aplicación en Servicios de Datos (`BaseService`):**
-  Establece un contrato base para cualquier servicio de infraestructura encargado de interactuar con la base de datos de forma *Stateless*, exigiendo la implementación del método `invoke(TInput data)`.
+* **Contrato Base de Infraestructura (`BaseService`):**
+  Garantiza un punto de entrada único para el acceso a datos basado en mapas de parámetros:
 
 ```java
-public abstract class BaseService<TInput, TOutput> {
+public abstract class BaseService<TOutput> {
 
-    public abstract TOutput invoke(TInput data);
+    public abstract TOutput invoke(Map<String, Object> data);
 
 }
 
@@ -110,37 +122,42 @@ public abstract class BaseService<TInput, TOutput> {
 
 ### 2. Patrón de Diseño: *Template Method* y Encapsulamiento
 
-El patrón *Template Method* se encarga de definir el esqueleto de un algoritmo en una superclase, permitiendo que las subclases redefinan ciertos pasos sin cambiar su estructura general.
-
-Junto con el **Encapsulamiento**, las variables de estado en los servicios Singleton se eliminaron para evitar la corrupción de datos en peticiones HTTP simultáneas:
+El método `execute(...)` de la clase `BaseCase` actúa como el **Template Method** principal. Las subclases implementan `onCreate(...)` para validar y empaquetar los parámetros en un `Map<String, Object>`, y `run(...)` para ejecutar la lógica de negocio aislada:
 
 ```java
-@Slf4j
 @Service
 @RequiredArgsConstructor
-public class UserChangeVisibilityCase extends BaseCase<Long, Boolean> {
+public class GetUserByIdCase extends BaseCase<Long, UserResponse> {
 
     private final LangConfig lang;
-    private final UserChangeVisibilityService service;
+    private final ModelMapper dto;
+    private final GetUserByIdService service;
 
     @Override
-    public ResultResponse<Boolean> run(Long request) {
-        log.info("Valor del request : {}", request);
+    protected Map<String, Object> onCreate(Long id) {
+        if (id == null || id <= 0) {
+            throw new ValidationException(lang.get("user.id.invalid"));
+        }
 
-        if (request == null || request <= 0) {
+        return Map.of(AppConstant.KEY_ID, id);
+    }
+
+    @Override
+    protected ResultResponse<UserResponse> run(Map<String, Object> request) {
+        var dbResponse = service.invoke(request);
+
+        if (dbResponse == null) {
             return new ResultResponse<>(
-                HttpStatus.BAD_REQUEST,
-                lang.get("user.id.invalid"),
-                false
+                HttpStatus.NO_CONTENT,
+                lang.get("user.not_found"),
+                null
             );
         }
 
-        Boolean dbResponse = service.invoke(request);
-
         return new ResultResponse<>(
             HttpStatus.OK,
-            dbResponse ? lang.get("user.change_visibility.success") : lang.get("user.change_visibility.error"),
-            dbResponse
+            HttpStatus.OK.getReasonPhrase(),
+            dto.map(dbResponse, UserResponse.class)
         );
     }
 }
@@ -149,31 +166,35 @@ public class UserChangeVisibilityCase extends BaseCase<Long, Boolean> {
 
 ### 3. Polimorfismo y Desacoplamiento en la Capa de Infraestructura
 
-Gracias a que `UserChangeVisibilityService` extiende de `BaseService<Long, Boolean>`, el caso de uso puede invocar el método `invoke(request)` de manera polimórfica sin necesidad de conocer la ejecución SQL o transaccional subyacente de `JdbcTemplate`:
+Las clases de servicio en la infraestructura extienden de `BaseService<TOutput>`, permitiendo que el caso de uso ejecute la persistencia llamando a `service.invoke(request)` sin preocuparse de los detalles técnicos de `EntityManager` ni de JPQL:
 
 ```java
 @Repository
-@RequiredArgsConstructor
-public class UserChangeVisibilityService extends BaseService<Long, Boolean> {
+public class GetUserByIdService extends BaseService<UserEntity> {
 
-  private final JdbcTemplate connection;
-  private final TransactionTemplate transaction;
+    @PersistenceContext
+    private EntityManager connection;
 
-  @Override
-  public Boolean invoke(Long id) {
-    return transaction.execute(status -> {
-      try {
-        String sql = """
-                    SELECT user_change_visibility(?)
-                """;
+    @Override
+    public UserEntity invoke(Map<String, Object> data) {
+        try {
+            String jpql = """
+                SELECT u 
+                FROM UserEntity u 
+                LEFT JOIN FETCH u.medicalRecord 
+                WHERE u.id = :id
+            """;
 
-        return connection.queryForObject(sql, Boolean.class, id);
-      } catch (Exception e) {
-        status.setRollbackOnly();
-        return false;
-      }
-    });
-  }
+            var record = connection.createQuery(jpql, UserEntity.class)
+                .setParameter("id", data.get(AppConstant.KEY_ID))
+                .getResultStream()
+                .findFirst();
+
+            return record.orElse(null);
+        } catch (Exception e) {
+            return null;
+        }
+    }
 }
 
 ```

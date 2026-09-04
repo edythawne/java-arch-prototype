@@ -1,11 +1,13 @@
 package edy.app.sgc.arch.infrastructure.service.user;
 
+import edy.app.sgc.arch.AppConstant;
 import edy.app.sgc.arch.infrastructure.entity.user.UserEntity;
 import edy.app.sgc.arch.infrastructure.service.BaseService;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
-import lombok.Setter;
 import org.springframework.stereotype.Repository;
+
+import java.util.Map;
 
 /**
  * @author edythawne
@@ -13,13 +15,13 @@ import org.springframework.stereotype.Repository;
  * @project ut_sgc
  */
 @Repository
-public class GetUserByIdService extends BaseService<Long, UserEntity> {
+public class GetUserByIdService extends BaseService<UserEntity> {
 
     @PersistenceContext
     private EntityManager connection;
 
     @Override
-    public UserEntity invoke(Long id) {
+    public UserEntity invoke(Map<String, Object> data) {
         try {
             String jpql = """
                 SELECT u 
@@ -29,7 +31,7 @@ public class GetUserByIdService extends BaseService<Long, UserEntity> {
             """;
 
             var record = connection.createQuery(jpql, UserEntity.class)
-                .setParameter("id", id)
+                .setParameter("id", data.get(AppConstant.KEY_ID))
                 .getResultStream()
                 .findFirst();
 

@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * @author edythawne
@@ -20,15 +21,20 @@ import java.util.List;
  */
 @Service
 @RequiredArgsConstructor
-public class GetAllUserCase extends BaseCase<Object, List<StudentIndexResponse>> {
+public class GetAllUserCase extends BaseCase<Object, List<StudentIndexResponse>>  {
 
     private final LangConfig lang;
     private final GetAllStudentService service;
 
     @Override
-    public ResultResponse<List<StudentIndexResponse>> run(Object request) {
+    protected Map<String, Object> onCreate(Object o) {
+        return Map.of();
+    }
+
+    @Override
+    protected ResultResponse<List<StudentIndexResponse>> run(Map<String, Object> request) {
         try {
-            var dbResponse = service.invoke(null);
+            var dbResponse = service.invoke(request);
 
             if (dbResponse == null || dbResponse.isEmpty()){
                 return new ResultResponse<>(

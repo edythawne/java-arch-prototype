@@ -36,7 +36,7 @@ class UserChangeVisibilityCaseTest {
         executor.submit(() -> {
             try {
                 latchInicio.await(); // Espera la señal de salida
-                changeVisibilityCase.run(1L);
+                changeVisibilityCase.execute(1L);
 
                 // Forzamos una pequeña pausa artificial para dar tiempo a que el Hilo 2 sobrescriba el valor
                 Thread.sleep(100);
@@ -58,7 +58,7 @@ class UserChangeVisibilityCaseTest {
                 latchInicio.await(); // Espera la señal de salida
                 Thread.sleep(20); // Un desfase mínimo para asegurar que entra justo después del Hilo A
 
-                changeVisibilityCase.run(2L);
+                changeVisibilityCase.execute(2L);
                 //log.info("Hilo B procesando ID: " + changeVisibilityCase.getRequestForTest());
 
                 Assertions.assertEquals(2L, 1L);

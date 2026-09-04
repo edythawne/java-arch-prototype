@@ -7,6 +7,7 @@ import jakarta.persistence.PersistenceContext;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * @author edythawne
@@ -14,13 +15,13 @@ import java.util.List;
  * @project ut_sgc
  */
 @Repository
-public class GetAllStudentService extends BaseService<Object, List<UserEntity>> {
+public class GetAllStudentService extends BaseService<List<UserEntity>>{
 
     @PersistenceContext
     private EntityManager connection;
 
     @Override
-    public List<UserEntity> invoke(Object data) {
+    public List<UserEntity> invoke(Map<String, Object> data) {
         try {
             String sql = """
                 SELECT u 
