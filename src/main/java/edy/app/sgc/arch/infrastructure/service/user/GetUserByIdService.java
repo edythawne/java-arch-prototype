@@ -13,16 +13,13 @@ import org.springframework.stereotype.Repository;
  * @project ut_sgc
  */
 @Repository
-public class GetUserByIdService extends BaseService<UserEntity> {
+public class GetUserByIdService extends BaseService<Long, UserEntity> {
 
     @PersistenceContext
     private EntityManager connection;
 
-    @Setter
-    private Long id;
-
     @Override
-    public UserEntity invoke() {
+    public UserEntity invoke(Long id) {
         try {
             String jpql = """
                 SELECT u 

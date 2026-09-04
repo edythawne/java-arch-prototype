@@ -26,9 +26,9 @@ public class GetAllUserCase extends BaseCase<Object, List<StudentIndexResponse>>
     private final GetAllStudentService service;
 
     @Override
-    public ResultResponse<List<StudentIndexResponse>> run() {
+    public ResultResponse<List<StudentIndexResponse>> run(Object request) {
         try {
-            var dbResponse = service.invoke();
+            var dbResponse = service.invoke(null);
 
             if (dbResponse == null || dbResponse.isEmpty()){
                 return new ResultResponse<>(

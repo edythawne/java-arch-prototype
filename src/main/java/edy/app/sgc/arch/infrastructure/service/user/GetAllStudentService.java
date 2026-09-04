@@ -14,13 +14,13 @@ import java.util.List;
  * @project ut_sgc
  */
 @Repository
-public class GetAllStudentService extends BaseService<List<UserEntity>> {
+public class GetAllStudentService extends BaseService<Object, List<UserEntity>> {
 
     @PersistenceContext
     private EntityManager connection;
 
     @Override
-    public List<UserEntity> invoke() {
+    public List<UserEntity> invoke(Object data) {
         try {
             String sql = """
                 SELECT u 

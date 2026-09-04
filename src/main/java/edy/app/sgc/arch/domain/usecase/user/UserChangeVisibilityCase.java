@@ -5,6 +5,7 @@ import edy.app.sgc.arch.domain.usecase.BaseCase;
 import edy.app.sgc.arch.domain.util.LangConfig;
 import edy.app.sgc.arch.infrastructure.service.user.UserChangeVisibilityService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
@@ -13,6 +14,7 @@ import org.springframework.stereotype.Service;
  * @created 31/08/2026 17:32
  * @project ut_sgc
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class UserChangeVisibilityCase extends BaseCase<Long, Boolean> {
@@ -21,7 +23,9 @@ public class UserChangeVisibilityCase extends BaseCase<Long, Boolean> {
     private final UserChangeVisibilityService service;
 
     @Override
-    public ResultResponse<Boolean> run() {
+    public ResultResponse<Boolean> run(Long request) {
+        log.info("Valor del request : {}", request);
+
         if (request == null || request <= 0) {
             return new ResultResponse<>(
                 HttpStatus.BAD_REQUEST,
@@ -30,8 +34,7 @@ public class UserChangeVisibilityCase extends BaseCase<Long, Boolean> {
             );
         }
 
-        service.setId(request);
-        Boolean dbResponse = service.invoke();
+        Boolean dbResponse = service.invoke(request);
 
         return new ResultResponse<>(
             HttpStatus.OK,

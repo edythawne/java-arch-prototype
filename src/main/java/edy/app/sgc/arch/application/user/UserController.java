@@ -24,17 +24,17 @@ public class UserController extends BaseController {
 
     @GetMapping("/get/all")
     public ResponseEntity<Object> getAll(){
-        return toResponse(getAllCase.run());
+        return toResponse(getAllCase.run(null));
     }
 
     @GetMapping("/get/by/{id}")
     public ResponseEntity<Object> getById(@PathVariable("id") Long id) {
-        return toResponse(getUserByIdCase.setRequest(id).run());
+        return toResponse(getUserByIdCase.run(id));
     }
 
     @PutMapping("/change/visibility/{id}")
     public ResponseEntity<Object> changeVisibility(@PathVariable("id") Long id) {
-        return toResponse(changeVisibilityCase.setRequest(id).run());
+        return toResponse(changeVisibilityCase.run(id));
     }
 
 }

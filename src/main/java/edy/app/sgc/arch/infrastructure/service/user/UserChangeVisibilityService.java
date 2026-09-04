@@ -14,19 +14,19 @@ import org.springframework.transaction.support.TransactionTemplate;
  */
 @Repository
 @RequiredArgsConstructor
-public class UserChangeVisibilityService extends BaseService<Boolean> {
+public class UserChangeVisibilityService extends BaseService<Long, Boolean> {
 
     private final JdbcTemplate connection;
     private final TransactionTemplate transaction;
 
-    @Setter
-    private Long id;
-
     @Override
-    public Boolean invoke() {
+    public Boolean invoke(Long id) {
         return transaction.execute(status -> {
             try {
-                String sql = "SELECT user_change_visibility(?)";
+                String sql = """
+                    SELECT user_change_visibility(?)
+                """;
+
                 return connection.queryForObject(sql, Boolean.class, id);
             } catch (Exception e) {
                 status.setRollbackOnly();

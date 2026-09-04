@@ -24,7 +24,7 @@ public class GetUserByIdCase extends BaseCase<Long, UserResponse> {
     private final GetUserByIdService service;
 
     @Override
-    public ResultResponse<UserResponse> run() {
+    public ResultResponse<UserResponse> run(Long request) {
         if (request == null || request <= 0){
             return new ResultResponse<>(
                 HttpStatus.BAD_REQUEST,
@@ -33,8 +33,7 @@ public class GetUserByIdCase extends BaseCase<Long, UserResponse> {
             );
         }
 
-        service.setId(request);
-        var dbResponse = service.invoke();
+        var dbResponse = service.invoke(request);
 
         if (dbResponse == null){
             return new ResultResponse<>(

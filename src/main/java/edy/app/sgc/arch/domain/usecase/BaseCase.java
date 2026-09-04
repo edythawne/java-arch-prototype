@@ -9,13 +9,6 @@ import edy.app.sgc.arch.domain.response.ResultResponse;
  */
 public abstract class BaseCase<TInput, TOutput> {
 
-    protected TInput request;
-
-    public BaseCase<TInput, TOutput> setRequest(TInput request){
-        this.request = request;
-        return this;
-    }
-
-    public abstract ResultResponse<TOutput> run();
+    public abstract ResultResponse<TOutput> run(TInput request);
 
 }
