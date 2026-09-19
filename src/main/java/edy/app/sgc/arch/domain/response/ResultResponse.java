@@ -9,6 +9,7 @@ import org.springframework.http.HttpStatus;
  * @project ut_sgc
  */
 @Data
+@NoArgsConstructor
 @AllArgsConstructor
 public class ResultResponse<TResponse> {
 
